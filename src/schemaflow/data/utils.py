@@ -7,13 +7,13 @@ def is_action_consistent_with_gold(action, example):
     
     if action.type == ActionType.ADD_NODE:
         if action.node is not None:
-            return action.node in example["gold_nodes"]
+            return action.node in example["gold"]["nodes"]
         elif action.src is not None and action.dst is not None and action.relation is not None:
-            return (action.src, action.relation, action.dst) in example["gold_rels"]
+            return (action.src, action.relation, action.dst) in example["gold"]["relations"]
     elif action.type == ActionType.ADD_NODE_PROP:
-        return (action.node, action.prop) in example["gold_node_props"]
+        return (action.node, action.prop) in example["gold"]["node_props"]
     elif action.type == ActionType.ADD_RELATION_PROP:
-        return (action.relation, action.prop) in example["gold_rel_props"]
+        return (action.relation, action.prop) in example["gold"]["relation_props"]
     elif action.type == ActionType.EOS:
         return True
     else:
@@ -26,13 +26,13 @@ def is_goal_state(
 ) -> bool:
     
     return (
-        state.selected_nodes == example["gold_nodes"]
+        state.selected_nodes == example["gold"]["nodes"]
         and
-        state.selected_node_props == example["gold_node_props"]
+        state.selected_node_props == example["gold"]["node_props"]
         and
-        state.selected_relations == example["gold_rels"]
+        state.selected_relations == example["gold"]["relations"]
         and
-        state.selected_rel_props == example["gold_rel_props"]
+        state.selected_rel_props == example["gold"]["relation_props"]
     )
     
 
