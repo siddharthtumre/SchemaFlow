@@ -88,7 +88,7 @@ class Trainer:
         self.reward_fn = SchemaLinkingReward(config.reward, device=self.device)
         
         self.global_step = 0
-        self.best_val_reward = float("inf")
+        self.best_val_reward = float("-inf")
 
     # ------------------------------------------------------------------
     def _build_optimizer(self) -> torch.optim.Optimizer:
@@ -122,6 +122,11 @@ class Trainer:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.policy.trainable_parameters(), cfg.grad_clip)
                 self.optimizer.step()
+                
+                print(
+                    torch.cuda.memory_allocated() / 1024**3,
+                    torch.cuda.memory_reserved() / 1024**3,
+                )
 
                 self.global_step += 1
                 if self.global_step % getattr(cfg, "log_every", 50) == 0:
