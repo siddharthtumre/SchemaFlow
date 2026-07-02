@@ -6,20 +6,20 @@ from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModel, AutoTokenizer, BitsAndBytesConfig
 from peft import LoraConfig as PeftLoraConfig, get_peft_model, TaskType
 from peft import prepare_model_for_kbit_training
 
-from schemaflow.policy.utils import serialize_state, serialize_action
+from src.schemaflow.policy.utils import serialize_state, serialize_action
 
-from schemaflow.schema.state import (
+from src.schemaflow.schema.state import (
     SchemaState,
     Action,
     apply_action,
     valid_actions,
 )
-from schemaflow.schema.graph import SchemaGraph
-from schemaflow.config import ModelConfig, LoRAConfig, GFlowNetConfig
+from src.schemaflow.schema.graph import SchemaGraph
+from src.schemaflow.config import ModelConfig, LoRAConfig, GFlowNetConfig
 
 class LLM(nn.Module):
     def __init__(self, model_config: ModelConfig, lora_config: LoRAConfig, device: torch.device):
@@ -35,7 +35,7 @@ class LLM(nn.Module):
                 bnb_4bit_quant_type="nf4",
             )
 
-        base_model = AutoModelForCausalLM.from_pretrained(
+        base_model = AutoModel.from_pretrained(
             model_config.model_name,
             trust_remote_code=True,
             device_map="auto",
@@ -55,6 +55,7 @@ class LLM(nn.Module):
         )
 
         self.model = get_peft_model(base_model, peft_config)
+        self.model.gradient_checkpointing_enable()
         self.tokenizer = AutoTokenizer.from_pretrained(model_config.model_name)
         self.tokenizer.padding_side = "right"
         if self.tokenizer.pad_token is None:
@@ -63,20 +64,23 @@ class LLM(nn.Module):
         self.hidden_size = self.model.config.hidden_size
 
     def encode(self, texts: List[str]) -> torch.Tensor:
+        print("Before forward:", torch.cuda.memory_allocated() / 1024**3)
         enc = self.tokenizer(
             texts,
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=2048,
+            max_length=512,
         ).to(self.device)
 
         out = self.model(
             **enc,
-            output_hidden_states=True,
             return_dict=True,
+            use_cache=False,
         )
-        last_hidden = out.hidden_states[-1]
+        last_hidden = out.last_hidden_state
+        
+        print("After forward:", torch.cuda.memory_allocated() / 1024**3)
 
         seq_lens = enc["attention_mask"].sum(dim=1) - 1
         batch_idx = torch.arange(last_hidden.size(0), device=last_hidden.device)
@@ -146,6 +150,11 @@ class SchemaFlowPolicy(nn.Module):
         actions = valid_actions(state, schema)
 
         state_text = serialize_state(state, query)
+        
+        print("=" * 60)
+        print("Num actions:", len(actions))
+        print("State chars:", len(state_text))
+        print("State tokens:", len(self.llm.tokenizer(state_text)["input_ids"]))
 
         flow_pooled = self.llm.encode([state_text])
         log_flow = self.flow_head(flow_pooled).squeeze(0)
@@ -158,7 +167,16 @@ class SchemaFlowPolicy(nn.Module):
             )
 
         action_texts = [state_text + serialize_action(a) for a in actions]
-        action_pooled = self.llm.encode(action_texts)
+        print("Action batch shape:", len(action_texts))
+        
+        chunk_size = 8
+        pooled = []
+
+        for i in range(0, len(action_texts), chunk_size):
+            pooled.append(self.llm.encode(action_texts[i:i + chunk_size]))
+
+        action_pooled = torch.cat(pooled, dim=0)
+        
         logits = self.policy_head(action_pooled)
 
         log_probs = F.log_softmax(logits / self.gfn_config.temperature, dim=-1)
