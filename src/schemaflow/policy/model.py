@@ -64,7 +64,7 @@ class LLM(nn.Module):
         self.hidden_size = self.model.config.hidden_size
 
     def encode(self, texts: List[str]) -> torch.Tensor:
-        print("Before forward:", torch.cuda.memory_allocated() / 1024**3)
+        # print("Before forward:", torch.cuda.memory_allocated() / 1024**3)
         enc = self.tokenizer(
             texts,
             return_tensors="pt",
@@ -82,7 +82,7 @@ class LLM(nn.Module):
 
         last_hidden = out.hidden_states[-1]
         
-        print("After forward:", torch.cuda.memory_allocated() / 1024**3)
+        # print("After forward:", torch.cuda.memory_allocated() / 1024**3)
 
         seq_lens = enc["attention_mask"].sum(dim=1) - 1
         batch_idx = torch.arange(last_hidden.size(0), device=last_hidden.device)
@@ -153,10 +153,10 @@ class SchemaFlowPolicy(nn.Module):
 
         state_text = serialize_state(state, query)
         
-        print("=" * 60)
-        print("Num actions:", len(actions))
-        print("State chars:", len(state_text))
-        print("State tokens:", len(self.llm.tokenizer(state_text)["input_ids"]))
+        # print("=" * 60)
+        # print("Num actions:", len(actions))
+        # print("State chars:", len(state_text))
+        # print("State tokens:", len(self.llm.tokenizer(state_text)["input_ids"]))
 
         flow_pooled = self.llm.encode([state_text])
         log_flow = self.flow_head(flow_pooled).squeeze(0)
@@ -169,7 +169,6 @@ class SchemaFlowPolicy(nn.Module):
             )
 
         action_texts = [state_text + serialize_action(a) for a in actions]
-        print("Action batch shape:", len(action_texts))
         
         chunk_size = 8
         pooled = []
