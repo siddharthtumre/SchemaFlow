@@ -1,4 +1,4 @@
-from src.schemaflow.schema.graph import schema_from_dict
+from schemaflow.schema.graph import schema_from_dict
 
 BIOLOGY_SCHEMA = schema_from_dict({
     "nodes": [

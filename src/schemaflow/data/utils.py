@@ -1,5 +1,5 @@
-from src.schemaflow.schema.state import SchemaState, ActionType, apply_action, valid_actions
-from src.schemaflow.data.schemas import SCHEMAS
+from schemaflow.schema.state import SchemaState, ActionType, apply_action, valid_actions
+from schemaflow.data.schemas import SCHEMAS
 
 from copy import deepcopy
 

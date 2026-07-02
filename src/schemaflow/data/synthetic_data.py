@@ -1,4 +1,4 @@
-from src.schemaflow.data.dataset import SchemaLinkingDataset
+from schemaflow.data.dataset import SchemaLinkingDataset
 
 SYNTHETIC_DATA = [
     {

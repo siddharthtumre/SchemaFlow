@@ -17,6 +17,7 @@ dependencies = [
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["schemaflow", "schemaflow.*"]
 
 [build-system]

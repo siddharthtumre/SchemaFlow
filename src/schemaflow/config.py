@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple
 import torch
-from src.schemaflow.data.synthetic_data import SYNTHETIC_DATA
+from schemaflow.data.synthetic_data import SYNTHETIC_DATA
 
 train_data = SYNTHETIC_DATA[:len(SYNTHETIC_DATA)//2]
 eval_data = SYNTHETIC_DATA[len(SYNTHETIC_DATA)//2:]

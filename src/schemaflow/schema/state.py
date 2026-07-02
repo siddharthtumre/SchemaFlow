@@ -4,8 +4,8 @@ from enum import Enum, auto
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 from collections import Counter
 
-from src.schemaflow.data.schemas import SCHEMAS
-from src.schemaflow.schema.graph import SchemaGraph
+from schemaflow.data.schemas import SCHEMAS
+from schemaflow.schema.graph import SchemaGraph
 from functools import lru_cache
 
 class ActionType(Enum):

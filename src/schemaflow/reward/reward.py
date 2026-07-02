@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, FrozenSet
 import torch
 
-from src.schemaflow.schema.state import SchemaState
-from src.schemaflow.schema.graph import SchemaGraph
+from schemaflow.schema.state import SchemaState
+from schemaflow.schema.graph import SchemaGraph
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -3,9 +3,9 @@ from typing import List
 import torch
 from torch.utils.data import Dataset
 
-from src.schemaflow.data.utils import enumerate_valid_trajectories
-from src.schemaflow.data.schemas import SCHEMAS
-from src.schemaflow.schema.state import SchemaState, Action, apply_action, num_parents
+from schemaflow.data.utils import enumerate_valid_trajectories
+from schemaflow.data.schemas import SCHEMAS
+from schemaflow.schema.state import SchemaState, Action, apply_action, num_parents
 
 
 @dataclass

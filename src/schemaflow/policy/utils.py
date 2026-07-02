@@ -1,4 +1,4 @@
-from src.schemaflow.schema.state import Action, SchemaState
+from schemaflow.schema.state import Action, SchemaState
 
 
 def serialize_state(state: SchemaState, question: str) -> str:

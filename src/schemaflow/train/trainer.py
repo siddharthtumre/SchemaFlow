@@ -5,13 +5,13 @@ import random
 from typing import List
 
 import torch
-from src.schemaflow.config import Config, DEFAULT_CONFIG
+from schemaflow.config import Config, DEFAULT_CONFIG
 
-from src.schemaflow.policy.model import SchemaFlowPolicy
-from src.schemaflow.data.dataset import SchemaLinkingDataset, Trajectory
-from src.schemaflow.data.schemas import SCHEMAS
-from src.schemaflow.reward.reward import SchemaLinkingReward
-from src.schemaflow.schema.state import SchemaState
+from schemaflow.policy.model import SchemaFlowPolicy
+from schemaflow.data.dataset import SchemaLinkingDataset, Trajectory
+from schemaflow.data.schemas import SCHEMAS
+from schemaflow.reward.reward import SchemaLinkingReward
+from schemaflow.schema.state import SchemaState
 
 # ──────────────────────────────────────────────────────────────────────
 # Detailed balance loss

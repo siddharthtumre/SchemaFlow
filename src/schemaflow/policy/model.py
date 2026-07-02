@@ -10,16 +10,16 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import LoraConfig as PeftLoraConfig, get_peft_model, TaskType
 from peft import prepare_model_for_kbit_training
 
-from src.schemaflow.policy.utils import serialize_state, serialize_action
+from schemaflow.policy.utils import serialize_state, serialize_action
 
-from src.schemaflow.schema.state import (
+from schemaflow.schema.state import (
     SchemaState,
     Action,
     apply_action,
     valid_actions,
 )
-from src.schemaflow.schema.graph import SchemaGraph
-from src.schemaflow.config import ModelConfig, LoRAConfig, GFlowNetConfig
+from schemaflow.schema.graph import SchemaGraph
+from schemaflow.config import ModelConfig, LoRAConfig, GFlowNetConfig
 
 class LLM(nn.Module):
     def __init__(self, model_config: ModelConfig, lora_config: LoRAConfig, device: torch.device):
