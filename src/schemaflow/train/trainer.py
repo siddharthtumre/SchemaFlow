@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import random
 from typing import List
+from tqdm import tqdm
 
 import torch
 from schemaflow.config import Config, DEFAULT_CONFIG
@@ -65,7 +66,7 @@ def compute_db_loss(
 
 
 class Trainer:
-    def __init__(self, config: Config = DEFAULT_CONFIG):  # noqa: F811
+    def __init__(self, config: Config = DEFAULT_CONFIG):
         torch.manual_seed(config.training.seed)
         random.seed(config.training.seed)
         
@@ -104,12 +105,14 @@ class Trainer:
         self.policy.train()
 
         for epoch in range(cfg.num_epochs):
+            print(f"[train] epoch {epoch}")
+            print(f"[train] train dataset size: {len(self.train_dataset)}")
             indices = list(range(len(self.train_dataset)))
             if getattr(cfg, "shuffle", True):
                 random.shuffle(indices)
 
             batch_size = getattr(cfg, "train_batch_size", 8)
-            for start in range(0, len(indices), batch_size):
+            for start in tqdm(range(0, len(indices), batch_size), desc="Training"):
                 batch_idx = indices[start:start + batch_size]
                 batch = [self.train_dataset[i] for i in batch_idx]
 
@@ -139,10 +142,11 @@ class Trainer:
         n_batches = 0
         n_examples = 0
 
+        print(f"[eval] val dataset size: {len(self.val_dataset)}")
         eval_batch_size = getattr(self.config.training, "eval_batch_size", 8)
         indices = list(range(len(self.val_dataset)))
 
-        for start in range(0, len(indices), eval_batch_size):
+        for start in tqdm(range(0, len(indices), eval_batch_size), desc="Evaluating"):
             batch_idx = indices[start:start + eval_batch_size]
             batch = [self.val_dataset[i] for i in batch_idx]
 

@@ -3,8 +3,10 @@ from typing import List, Tuple
 import torch
 from schemaflow.data.synthetic_data import SYNTHETIC_DATA
 
-train_data = SYNTHETIC_DATA[:len(SYNTHETIC_DATA)//2]
-eval_data = SYNTHETIC_DATA[len(SYNTHETIC_DATA)//2:]
+split_idx = int(0.9 * len(SYNTHETIC_DATA))
+
+train_data = SYNTHETIC_DATA[:split_idx]
+eval_data = SYNTHETIC_DATA[split_idx:]
 
 
 @dataclass
