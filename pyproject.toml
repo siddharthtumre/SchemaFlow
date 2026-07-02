@@ -1,0 +1,24 @@
+[project]
+name = "schemaflow"
+version = "0.1.0"
+authors = [
+    { name = "Siddharth Tumre", email = "siddharthtumre2@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "bitsandbytes>=0.46.1",
+    "numpy>=2.2.6",
+    "peft>=0.19.1",
+    "torch>=2.8.0",
+    "transformers>=5.12.1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+include = ["schemaflow", "schemaflow.*"]
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
