@@ -6,7 +6,7 @@ from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoModel, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import LoraConfig as PeftLoraConfig, get_peft_model, TaskType
 from peft import prepare_model_for_kbit_training
 
@@ -35,7 +35,7 @@ class LLM(nn.Module):
                 bnb_4bit_quant_type="nf4",
             )
 
-        base_model = AutoModel.from_pretrained(
+        base_model = AutoModelForCausalLM.from_pretrained(
             model_config.model_name,
             trust_remote_code=True,
             device_map="auto",
@@ -75,10 +75,12 @@ class LLM(nn.Module):
 
         out = self.model(
             **enc,
+            output_hidden_states=True,
             return_dict=True,
             use_cache=False,
         )
-        last_hidden = out.last_hidden_state
+
+        last_hidden = out.hidden_states[-1]
         
         print("After forward:", torch.cuda.memory_allocated() / 1024**3)
 
