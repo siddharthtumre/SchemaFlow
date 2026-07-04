@@ -25,5 +25,5 @@ BIOLOGY_SCHEMA = schema_from_dict({
 })
 
 SCHEMAS = {
-    "cb_biology": BIOLOGY_SCHEMA,
+    "biology": BIOLOGY_SCHEMA,
 }

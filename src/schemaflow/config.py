@@ -1,12 +1,35 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple
+import json
 import torch
-from schemaflow.data.synthetic_data import SYNTHETIC_DATA
 
-split_idx = int(0.9 * len(SYNTHETIC_DATA))
+def map_data_types(data):
+    for example in data:
+        gold = example["gold"]
 
-train_data = SYNTHETIC_DATA[:split_idx]
-eval_data = SYNTHETIC_DATA[split_idx:]
+        gold["nodes"] = set(gold["nodes"])
+        gold["node_props"] = {tuple(x) for x in gold["node_props"]}
+        gold["relations"] = {tuple(x) for x in gold["relations"]}
+        gold["relation_props"] = {tuple(x) for x in gold["relation_props"]}
+
+    return data
+
+train_datapath = "src/schemaflow/data/cb_train.json"
+test_datapath = "src/schemaflow/data/cb_test.json"
+
+with open(train_datapath, "r", encoding="utf-8") as f:
+    train_data = json.load(f)
+
+with open(test_datapath, "r", encoding="utf-8") as f:
+    test_data = json.load(f)
+    
+train_data = map_data_types(train_data)
+test_data = map_data_types(test_data)
+
+split_idx = int(0.9 * len(train_data))
+
+train_data = train_data[:split_idx]
+eval_data = train_data[split_idx:]
 
 
 @dataclass
@@ -39,6 +62,7 @@ class TrainingConfig:
     # Paths
     train_data:      List   = field(default_factory=lambda: train_data)
     eval_data:       List   = field(default_factory=lambda: eval_data)
+    test_data:       List   = field(default_factory=lambda: test_data)
     output_dir:      str   = "checkpoints/"
     # Training
     num_epochs:      int   = 10

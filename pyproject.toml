@@ -6,7 +6,9 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "antlr4-python3-runtime>=4.13.2",
     "bitsandbytes>=0.46.1",
+    "datasets>=5.0.0",
     "numpy>=2.2.6",
     "peft>=0.19.1",
     "torch>=2.8.0",
