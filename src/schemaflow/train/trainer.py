@@ -22,10 +22,12 @@ from schemaflow.schema.state import SchemaState
 def compute_db_loss(
     policy: SchemaFlowPolicy,
     trajectories: List[Trajectory],
-    optimizer,
-    grad_clip
+    optimizer=None,
+    grad_clip=None
 ) -> torch.Tensor:
-    optimizer.zero_grad()
+    if optimizer is not None:
+        optimizer.zero_grad()
+        
     total_loss = 0.0
     n_transitions = sum(len(t.steps) for t in trajectories)
     if n_transitions == 0:
@@ -54,9 +56,15 @@ def compute_db_loss(
             step_loss = (residual ** 2) / n_transitions  # normalize over full batch
             step_loss.backward()  # graph for this step is freed right here
             total_loss += step_loss.item()
-
-    torch.nn.utils.clip_grad_norm_(policy.trainable_parameters(), grad_clip)
-    optimizer.step()
+            
+    
+    if optimizer is not None:
+        if grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(
+                policy.trainable_parameters(),
+                grad_clip,
+            )
+        optimizer.step()
     return total_loss
 
 
@@ -117,7 +125,7 @@ class Trainer:
         self.policy.train()
 
         for epoch in range(cfg.num_epochs):
-            print(f"[train] epoch {epoch}")
+            print(f"[train] epoch {epoch+1}")
             print(f"[train] train dataset size: {len(self.train_dataset)}")
             indices = list(range(len(self.train_dataset)))
             if getattr(cfg, "shuffle", True):
