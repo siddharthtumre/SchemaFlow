@@ -26,7 +26,7 @@ def compute_db_loss(
 
     all_residuals = []
 
-    for traj in tqdm(trajectories, desc="Computing DB Loss"):
+    for traj in trajectories:
         schema = SCHEMAS[traj.example["schema"]]
         state_cache: dict = {}
 
