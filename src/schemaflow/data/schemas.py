@@ -15,4 +15,3 @@ for schema_file in schemas_path.glob("*.json"):
     SCHEMAS[schema_dict["name"]] = schema_from_dict(schema_dict)
     
 print(f"Loaded SCHEMAS: {list(SCHEMAS.keys())}")
-print(SCHEMAS)
