@@ -148,7 +148,7 @@ class Trainer:
                 self.transitions_seen += sum(len(t.steps) for t in batch)
                 
                 if self.global_step % getattr(cfg, "log_every", 50) == 0:
-                    print(f"epoch {epoch} | step {self.global_step} | loss {loss.item():.4f}")
+                    print(f"epoch {epoch} | step {self.global_step} | loss {loss:.4f}")
                     print(f"Trajectories seen: {self.examples_seen}")
                     print(f"Transitions seen: {self.transitions_seen}")
 
