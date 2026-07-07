@@ -25,21 +25,17 @@ def compute_db_loss(
     optimizer,
     grad_clip
 ) -> torch.Tensor:
-    total_loss = 0.0
     optimizer.zero_grad()
+    total_loss = 0.0
+    n_transitions = sum(len(t.steps) for t in trajectories)
+    if n_transitions == 0:
+        return 0.0
 
     for traj in trajectories:
         schema = SCHEMAS[traj.example["schema"]]
-        state_cache = {}
 
-        def get_out(s):
-            if s not in state_cache:
-                state_cache[s] = policy(s, schema, traj.query)
-            return state_cache[s]
-
-        residuals = []
         for step in traj.steps:
-            out_s = get_out(step.state)
+            out_s = policy(step.state, schema, traj.query)
             action_idx = out_s.actions.index(step.action)
             log_pf = out_s.log_probs[action_idx]
             log_f_s = out_s.log_flow
@@ -47,15 +43,17 @@ def compute_db_loss(
             if step.next_state.is_terminal:
                 log_f_s_next = torch.zeros_like(log_f_s)
             else:
-                log_f_s_next = get_out(step.next_state).log_flow
+                out_s_next = policy(step.next_state, schema, traj.query)
+                log_f_s_next = out_s_next.log_flow
 
-            log_pb = torch.as_tensor(step.log_p_b, device=log_f_s.device, dtype=log_f_s.dtype)
-            residuals.append((log_f_s + log_pf) - (log_f_s_next + log_pb))
+            log_pb = torch.as_tensor(
+                step.log_p_b, device=log_f_s.device, dtype=log_f_s.dtype
+            )
+            residual = (log_f_s + log_pf) - (log_f_s_next + log_pb)
 
-        if residuals:
-            traj_loss = (torch.stack(residuals) ** 2).mean() / len(trajectories)
-            traj_loss.backward()   # graph for this trajectory is freed here
-            total_loss += traj_loss.item()
+            step_loss = (residual ** 2) / n_transitions  # normalize over full batch
+            step_loss.backward()  # graph for this step is freed right here
+            total_loss += step_loss.item()
 
     torch.nn.utils.clip_grad_norm_(policy.trainable_parameters(), grad_clip)
     optimizer.step()
