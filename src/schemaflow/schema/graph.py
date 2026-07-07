@@ -51,12 +51,25 @@ class SchemaGraph:
 
 
 def schema_from_dict(d: dict) -> SchemaGraph:
+    nodes = {entity["label"] for entity in d["entities"]}
 
-    nodes = set(d["nodes"])
-    edges = {tuple(e) for e in d["edges"]}
-    relations = {e[1] for e in edges}
-    node_props = {k: set(v) for k, v in d.get("node_props", {}).items()}
-    rel_props = {k: set(v) for k, v in d.get("rel_props", {}).items()}
+    node_props = {
+        entity["label"]: set(entity.get("properties", {}).keys())
+        for entity in d["entities"]
+    }
+
+    relations = {rel["label"] for rel in d["relations"]}
+
+    rel_props = {}
+    for rel in d["relations"]:
+        label = rel["label"]
+        props = set(rel.get("properties", {}).keys())
+        rel_props.setdefault(label, set()).update(props)
+
+    edges = {
+        (rel["subj_label"], rel["label"], rel["obj_label"])
+        for rel in d["relations"]
+    }
 
     return SchemaGraph(
         nodes=nodes,

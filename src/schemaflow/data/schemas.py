@@ -1,29 +1,18 @@
-from schemaflow.schema.graph import schema_from_dict
+from pathlib import Path
+import json
 
-BIOLOGY_SCHEMA = schema_from_dict({
-    "nodes": [
-        "Taxon",
-        "ConservationStatus",
-        "Habitat",
-        "TaxonRank",
-    ],
-    "edges": [
-        ("Taxon", "inhabits", "Habitat"),
-        ("Taxon", "hasConversationStatus", "ConservationStatus"),
-        ("Taxon", "hasRank", "TaxonRank"),
-        ("Taxon", "hasParent", "Taxon"),
-        ("Taxon", "feedsOn", "Taxon"),
-    ],
-    "node_props": {
-        "Taxon": ["taxon_name", "name", "longest_lifespan_years", "diel_cycle", "avg_gestation_period_days"],
-        "ConservationStatus": ["name"],
-        "TaxonRank": ["name"],
-        "Habitat": ["name"],
-    },
-    "rel_props": {
-    },
-})
 
-SCHEMAS = {
-    "biology": BIOLOGY_SCHEMA,
-}
+from schemaflow.schema.graph import SchemaGraph, schema_from_dict
+
+schemas_path = Path("src/schemaflow/data/cypherbench_schemas")
+
+SCHEMAS: dict[str, SchemaGraph] = {}
+
+for schema_file in schemas_path.glob("*.json"):
+    with open(schema_file, "r") as f:
+        schema_dict = json.load(f)
+
+    SCHEMAS[schema_dict["name"]] = schema_from_dict(schema_dict)
+    
+    break
+print(SCHEMAS)
