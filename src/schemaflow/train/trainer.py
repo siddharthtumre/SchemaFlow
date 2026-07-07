@@ -83,9 +83,13 @@ class Trainer:
         ).to(self.device)
         self.policy = self.policy.to(self.policy.llm.model.dtype)
 
-        self.train_dataset = SchemaLinkingDataset(config.training.train_data)
-        self.val_dataset = SchemaLinkingDataset(config.training.eval_data)
-        self.test_dataset = SchemaLinkingDataset(config.training.test_data)
+        self.train_dataset = SchemaLinkingDataset(config.training.train_data, max_trajectories=None)
+        self.val_dataset = SchemaLinkingDataset(config.training.eval_data, max_trajectories=None)
+        self.test_dataset = SchemaLinkingDataset(config.training.test_data, max_trajectories=None)
+        
+        print(f"Loaded train_dataset with samples: {len(self.train_dataset)}")
+        print(f"Loaded val_dataset with samples: {len(self.val_dataset)}")
+        print(f"Loaded test_dataset with samples: {len(self.test_dataset)}")
 
         self.optimizer = self._build_optimizer()
         self.reward_fn = SchemaLinkingReward(config.reward, device=self.device)

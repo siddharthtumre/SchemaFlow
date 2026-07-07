@@ -28,9 +28,9 @@ test_data = map_data_types(test_data)
 
 split_idx = int(0.9 * len(train_data))
 
-train_data = train_data[:split_idx]
-eval_data = train_data[split_idx:]
-
+original_train_data = train_data
+train_data = original_train_data[:split_idx]
+eval_data = original_train_data[split_idx:]
 
 @dataclass
 class ModelConfig:

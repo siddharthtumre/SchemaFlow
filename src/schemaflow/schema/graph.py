@@ -54,7 +54,7 @@ def schema_from_dict(d: dict) -> SchemaGraph:
     nodes = {entity["label"] for entity in d["entities"]}
 
     node_props = {
-        entity["label"]: set(entity.get("properties", {}).keys())
+        entity["label"]: {"name"} | set(entity.get("properties", {}).keys())
         for entity in d["entities"]
     }
 
