@@ -167,7 +167,7 @@ class SchemaFlowPolicy(nn.Module):
 
         action_texts = [state_text + serialize_action(a) for a in actions]
         
-        chunk_size = 2
+        chunk_size = 8
         pooled = []
 
         for i in range(0, len(action_texts), chunk_size):
