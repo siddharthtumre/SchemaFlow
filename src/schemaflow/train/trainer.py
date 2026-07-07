@@ -22,44 +22,44 @@ from schemaflow.schema.state import SchemaState
 def compute_db_loss(
     policy: SchemaFlowPolicy,
     trajectories: List[Trajectory],
+    optimizer,
+    grad_clip
 ) -> torch.Tensor:
-
-    all_residuals = []
+    total_loss = 0.0
+    optimizer.zero_grad()
 
     for traj in trajectories:
         schema = SCHEMAS[traj.example["schema"]]
-        state_cache: dict = {}
+        state_cache = {}
 
-        def get_out(s: SchemaState):
+        def get_out(s):
             if s not in state_cache:
                 state_cache[s] = policy(s, schema, traj.query)
             return state_cache[s]
 
+        residuals = []
         for step in traj.steps:
             out_s = get_out(step.state)
-
             action_idx = out_s.actions.index(step.action)
             log_pf = out_s.log_probs[action_idx]
             log_f_s = out_s.log_flow
 
             if step.next_state.is_terminal:
-                log_f_s_next = torch.zeros_like(log_f_s)  # log(reward=1.0) == 0
+                log_f_s_next = torch.zeros_like(log_f_s)
             else:
-                out_s_next = get_out(step.next_state)
-                log_f_s_next = out_s_next.log_flow
+                log_f_s_next = get_out(step.next_state).log_flow
 
-            log_pb = torch.as_tensor(
-                step.log_p_b, device=log_f_s.device, dtype=log_f_s.dtype
-            )
+            log_pb = torch.as_tensor(step.log_p_b, device=log_f_s.device, dtype=log_f_s.dtype)
+            residuals.append((log_f_s + log_pf) - (log_f_s_next + log_pb))
 
-            residual = (log_f_s + log_pf) - (log_f_s_next + log_pb)
-            all_residuals.append(residual)
+        if residuals:
+            traj_loss = (torch.stack(residuals) ** 2).mean() / len(trajectories)
+            traj_loss.backward()   # graph for this trajectory is freed here
+            total_loss += traj_loss.item()
 
-    if not all_residuals:
-        return torch.zeros((), device=policy.device, requires_grad=True)
-
-    residuals = torch.stack(all_residuals)
-    return (residuals**2).mean()
+    torch.nn.utils.clip_grad_norm_(policy.trainable_parameters(), grad_clip)
+    optimizer.step()
+    return total_loss
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -130,14 +130,7 @@ class Trainer:
                 batch_idx = indices[start : start + batch_size]
                 batch = [self.train_dataset[i] for i in batch_idx]
 
-                loss = compute_db_loss(self.policy, batch)
-
-                self.optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    self.policy.trainable_parameters(), cfg.grad_clip
-                )
-                self.optimizer.step()
+                loss = compute_db_loss(self.policy, batch, self.optimizer, cfg.grad_clip)
 
                 # print(
                 #     torch.cuda.memory_allocated() / 1024**3,
