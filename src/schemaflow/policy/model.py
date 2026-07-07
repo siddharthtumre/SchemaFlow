@@ -54,6 +54,7 @@ class LLM(nn.Module):
         )
 
         self.model = get_peft_model(base_model, peft_config)
+        self.model.gradient_checkpointing_enable()
         self.tokenizer = AutoTokenizer.from_pretrained(model_config.model_name)
         self.tokenizer.padding_side = "right"
         if self.tokenizer.pad_token is None:
