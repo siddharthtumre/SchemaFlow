@@ -110,6 +110,11 @@ class Trainer:
 
     # ------------------------------------------------------------------
     def train(self) -> None:
+        trainable = sum(p.numel() for p in self.policy.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in self.policy.parameters())
+
+        print(f"Trainable: {trainable:,} / {total:,}")
+        
         cfg = self.config.training
         self.policy.train()
 
