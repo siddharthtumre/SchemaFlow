@@ -22,6 +22,7 @@ from schemaflow.schema.state import SchemaState
 
 def compute_db_loss(policy, trajectories, encode_batch_size=64):
     items = []
+    seen = set()
     schema_lookup, query_lookup = {}, {}
 
     for traj_idx, traj in enumerate(trajectories):
@@ -34,7 +35,9 @@ def compute_db_loss(policy, trajectories, encode_batch_size=64):
                 if s.is_terminal:
                     continue
                 key = (traj_idx, s)
-                items.append(key)
+                if key not in seen:
+                    seen.add(key)
+                    items.append(key)
 
     if not items:
         return torch.zeros((), device=policy.device, requires_grad=True)
