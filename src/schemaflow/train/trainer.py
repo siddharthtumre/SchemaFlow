@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import math
 import random
 from typing import List
 from tqdm import tqdm
@@ -153,7 +154,12 @@ class Trainer:
 
             train_batch_size = getattr(cfg, "train_batch_size", 8)
             shuffle = getattr(cfg, "shuffle", True)
-            for batch in tqdm(self._iter_batches(self.train_dataset, train_batch_size, shuffle), desc="Training"):
+            total_batches = math.ceil(len(self.train_dataset) / train_batch_size)
+            for batch in tqdm(
+                self._iter_batches(self.train_dataset, train_batch_size, shuffle),
+                total=total_batches,
+                desc="Training",
+            ):
                 loss = self.train_step(self.policy, batch, self.optimizer, self.scheduler, cfg.grad_clip)
 
                 self.global_step += 1
@@ -201,17 +207,22 @@ class Trainer:
 
         total_loss = 0.0
         total_reward = 0.0
-        n_batches = 0
-        n_examples = 0
+        n_batches_processed = 0
+        n_examples_processed = 0
 
         print(f"[{split}] dataset size: {len(dataset)}")
 
         eval_batch_size = getattr(self.config.training, "eval_batch_size", 8)
 
-        for batch in tqdm(self._iter_batches(self.train_dataset, eval_batch_size), desc="Evaluating ({split})"):
+        total_batches = math.ceil(len(dataset) / eval_batch_size)
+        for batch in tqdm(
+            self._iter_batches(dataset, eval_batch_size),
+            total=total_batches,
+            desc="Evaluating ({split})",
+        ):
             loss = compute_db_loss(self.policy, batch, encode_batch_size=64)
             total_loss += loss.item()
-            n_batches += 1
+            n_batches_processed += 1
 
             for traj in batch:
                 schema = SCHEMAS[traj.example["schema"]]
@@ -232,11 +243,11 @@ class Trainer:
                     reward = 0.0
 
                 total_reward += reward
-                n_examples += 1
+                n_examples_processed += 1
 
         metrics = {
-            f"{split}_loss": total_loss / max(n_batches, 1),
-            f"{split}_reward": total_reward / max(n_examples, 1),
+            f"{split}_loss": total_loss / max(n_batches_processed, 1),
+            f"{split}_reward": total_reward / max(n_examples_processed, 1),
         }
 
         print(
