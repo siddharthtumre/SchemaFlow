@@ -18,27 +18,34 @@ from schemaflow.schema.state import SchemaState
 # Detailed balance loss
 # ──────────────────────────────────────────────────────────────────────
 
+def compute_db_loss(policy, trajectories, encode_batch_size=8):
+    items = []
+    seen = set()
+    schema_lookup, query_lookup = {}, {}
 
-def compute_db_loss(
-    policy: SchemaFlowPolicy,
-    trajectories: List[Trajectory],
-    split="train",
-    optimizer=None,
-    grad_clip=None,
-) -> torch.Tensor:
-    if split=="train":
-        optimizer.zero_grad()
-        
-    total_loss = 0.0
-    n_transitions = sum(len(t.steps) for t in trajectories)
-    if n_transitions == 0:
-        return 0.0
-
-    for traj in trajectories:
+    for traj_idx, traj in enumerate(trajectories):
         schema = SCHEMAS[traj.example["schema"]]
+        schema_lookup[traj_idx] = schema
+        query_lookup[traj_idx] = traj.query
 
         for step in traj.steps:
-            out_s = policy(step.state, schema, traj.query)
+            for s in (step.state, step.next_state):
+                if s.is_terminal:
+                    continue
+                key = (traj_idx, s)
+                if key not in seen:
+                    seen.add(key)
+                    items.append(key)
+
+    if not items:
+        return torch.zeros((), device=policy.device, requires_grad=True)
+
+    outputs = policy.batch_forward(items, schema_lookup, query_lookup, encode_batch_size)
+
+    all_residuals = []
+    for traj_idx, traj in enumerate(trajectories):
+        for step in traj.steps:
+            out_s = outputs[(traj_idx, step.state)]
             action_idx = out_s.actions.index(step.action)
             log_pf = out_s.log_probs[action_idx]
             log_f_s = out_s.log_flow
@@ -46,28 +53,13 @@ def compute_db_loss(
             if step.next_state.is_terminal:
                 log_f_s_next = torch.zeros_like(log_f_s)
             else:
-                out_s_next = policy(step.next_state, schema, traj.query)
-                log_f_s_next = out_s_next.log_flow
+                log_f_s_next = outputs[(traj_idx, step.next_state)].log_flow
 
-            log_pb = torch.as_tensor(
-                step.log_p_b, device=log_f_s.device, dtype=log_f_s.dtype
-            )
-            residual = (log_f_s + log_pf) - (log_f_s_next + log_pb)
+            log_pb = torch.as_tensor(step.log_p_b, device=log_f_s.device, dtype=log_f_s.dtype)
+            all_residuals.append((log_f_s + log_pf) - (log_f_s_next + log_pb))
 
-            step_loss = (residual ** 2) / n_transitions
-            if split=="train":
-                step_loss.backward()
-            total_loss += step_loss.item()
-            
-    
-    if split=="train":
-        torch.nn.utils.clip_grad_norm_(
-            policy.trainable_parameters(),
-            grad_clip,
-        )
-    optimizer.step()
-    return total_loss
-
+    residuals = torch.stack(all_residuals)
+    return (residuals ** 2).mean()
 
 # ──────────────────────────────────────────────────────────────────────
 # Trainer
@@ -116,6 +108,15 @@ class Trainer:
         return torch.optim.AdamW(params, lr=self.config.training.lr)
 
     # ------------------------------------------------------------------
+    def train_step(self, policy, trajectories, optimizer, grad_clip, encode_batch_size=8):
+        """Training wrapper: computes loss, backprops, and steps the optimizer."""
+        optimizer.zero_grad()
+        loss = compute_db_loss(policy, trajectories, encode_batch_size)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(policy.trainable_parameters(), grad_clip)
+        optimizer.step()
+        return loss.item()
+    
     def train(self) -> None:
         trainable = sum(p.numel() for p in self.policy.parameters() if p.requires_grad)
         total = sum(p.numel() for p in self.policy.parameters())
@@ -137,7 +138,7 @@ class Trainer:
                 batch_idx = indices[start : start + batch_size]
                 batch = [self.train_dataset[i] for i in batch_idx]
 
-                loss = compute_db_loss(self.policy, batch, "train", self.optimizer, cfg.grad_clip)
+                loss = self.train_step(self.policy, batch, self.optimizer, cfg.grad_clip)
 
                 # print(
                 #     torch.cuda.memory_allocated() / 1024**3,
@@ -201,7 +202,7 @@ class Trainer:
             batch_idx = indices[start : start + eval_batch_size]
             batch = [dataset[i] for i in batch_idx]
 
-            loss = compute_db_loss(self.policy, batch, split="val")
+            loss = compute_db_loss(self.policy, batch, encode_batch_size=8)
             total_loss += loss.item()
             n_batches += 1
 

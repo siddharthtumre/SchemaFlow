@@ -137,6 +137,58 @@ class SchemaFlowPolicy(nn.Module):
         self.llm = LLM(model_config, lora_config, device)
         self.policy_head = PolicyHead(self.llm.hidden_size).to(device)
         self.flow_head = FlowHead(self.llm.hidden_size).to(device)
+        
+    def batch_forward(self, items, schema_lookup, query_lookup, encode_batch_size=8):
+        flow_texts, flow_keys, actions_per_item = [], [], []
+        action_texts, action_owner = [], []
+
+        for traj_idx, state in items:
+            schema = schema_lookup[traj_idx]
+            query = query_lookup[traj_idx]
+            actions = valid_actions(state, schema)
+            state_text = serialize_state(state, query)
+
+            flow_texts.append(state_text)
+            flow_keys.append((traj_idx, state))
+            actions_per_item.append(actions)
+
+            for a in actions:
+                action_texts.append(state_text + serialize_action(a))
+                action_owner.append(len(flow_keys) - 1)
+
+        flow_pooled = self._encode_batched(flow_texts, encode_batch_size)
+        log_flow_all = self.flow_head(flow_pooled)  # (N,)
+
+        if action_texts:
+            action_pooled = self._encode_batched(action_texts, encode_batch_size)
+            logits_all = self.policy_head(action_pooled)  # (M,)
+        else:
+            logits_all = torch.empty(0, device=self.device)
+
+        results = {}
+        ptr = 0
+        for i, (key, actions) in enumerate(zip(flow_keys, actions_per_item)):
+            n = len(actions)
+            log_flow_i = log_flow_all[i]
+
+            if n == 0:
+                results[key] = PolicyOutput(
+                    actions=[], log_probs=torch.empty(0, device=self.device), log_flow=log_flow_i
+                )
+                continue
+
+            logits_i = logits_all[ptr: ptr + n]
+            ptr += n
+            log_probs_i = F.log_softmax(logits_i / self.gfn_config.temperature, dim=-1)
+            results[key] = PolicyOutput(actions=actions, log_probs=log_probs_i, log_flow=log_flow_i)
+
+        return results
+
+    def _encode_batched(self, texts, encode_batch_size):
+        pooled = []
+        for i in range(0, len(texts), encode_batch_size):
+            pooled.append(self.llm.encode(texts[i:i + encode_batch_size]))
+        return torch.cat(pooled, dim=0)
 
     # ------------------------------------------------------------------
     def forward(
