@@ -87,21 +87,7 @@ class LLM(nn.Module):
         
         return pooled
 
-
-class PolicyHead(nn.Module):
-    def __init__(self, hidden_size: int):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size // 2),
-            nn.GELU(),
-            nn.Linear(hidden_size // 2, 1),
-        )
-
-    def forward(self, pooled: torch.Tensor) -> torch.Tensor:
-        return self.net(pooled).squeeze(-1)
-
-
-class FlowHead(nn.Module):
+class MLPHead(nn.Module):
     def __init__(self, hidden_size: int):
         super().__init__()
         self.net = nn.Sequential(
@@ -135,8 +121,8 @@ class SchemaFlowPolicy(nn.Module):
         self.gfn_config = gfn_config
 
         self.llm = LLM(model_config, lora_config, device)
-        self.policy_head = PolicyHead(self.llm.hidden_size).to(device)
-        self.flow_head = FlowHead(self.llm.hidden_size).to(device)
+        self.policy_head = MLPHead(self.llm.hidden_size).to(device)
+        self.flow_head = MLPHead(self.llm.hidden_size).to(device)
         
     def batch_forward(self, items, schema_lookup, query_lookup, encode_batch_size=8):
         flow_texts, flow_keys, actions_per_item = [], [], []
@@ -192,46 +178,19 @@ class SchemaFlowPolicy(nn.Module):
 
     # ------------------------------------------------------------------
     def forward(
-        self,
-        state:    SchemaState,
-        schema:   SchemaGraph,
-        query: str,
-    ) -> PolicyOutput:
-        
-        actions = valid_actions(state, schema)
-
-        state_text = serialize_state(state, query)
-        
-        # print("=" * 60)
-        # print("Num actions:", len(actions))
-        # print("State chars:", len(state_text))
-        # print("State tokens:", len(self.llm.tokenizer(state_text)["input_ids"]))
-
-        flow_pooled = self.llm.encode([state_text])
-        log_flow = self.flow_head(flow_pooled).squeeze(0)
-        
-        if not actions:
-            return PolicyOutput(
-                actions=[],
-                log_probs=torch.empty(0, device=self.device),
-                log_flow=log_flow,
-            )
-
-        action_texts = [state_text + serialize_action(a) for a in actions]
-        
-        chunk_size = 8
-        pooled = []
-
-        for i in range(0, len(action_texts), chunk_size):
-            pooled.append(self.llm.encode(action_texts[i:i + chunk_size]))
-
-        action_pooled = torch.cat(pooled, dim=0)
-        
-        logits = self.policy_head(action_pooled)
-
-        log_probs = F.log_softmax(logits / self.gfn_config.temperature, dim=-1)
-
-        return PolicyOutput(actions=actions, log_probs=log_probs, log_flow=log_flow)
+            self,
+            state: SchemaState,
+            schema: SchemaGraph,
+            query: str
+        ) -> PolicyOutput:
+        key = (0, state)
+        results = self.batch_forward(
+            [key],
+            schema_lookup={0: schema},
+            query_lookup={0: query},
+            encode_batch_size=8,
+        )
+        return results[key]
 
     # ------------------------------------------------------------------
     

@@ -120,6 +120,14 @@ class Trainer:
         )
 
     # ------------------------------------------------------------------
+    def _iter_batches(self, dataset, batch_size, shuffle=False):
+        indices = list(range(len(dataset)))
+        if shuffle:
+            random.shuffle(indices)
+        for start in range(0, len(indices), batch_size):
+            idx = indices[start : start + batch_size]
+            yield [dataset[i] for i in idx]
+    
     def train_step(self, policy, trajectories, optimizer, scheduler, grad_clip, encode_batch_size=64):
         """Training wrapper: computes loss, backprops, and steps the optimizer."""
         optimizer.zero_grad()
@@ -142,21 +150,11 @@ class Trainer:
         for epoch in range(cfg.num_epochs):
             print(f"[train] epoch {epoch+1}")
             print(f"[train] train dataset size: {len(self.train_dataset)}")
-            indices = list(range(len(self.train_dataset)))
-            if getattr(cfg, "shuffle", True):
-                random.shuffle(indices)
 
-            batch_size = getattr(cfg, "train_batch_size", 8)
-            for start in tqdm(range(0, len(indices), batch_size), desc="Training"):
-                batch_idx = indices[start : start + batch_size]
-                batch = [self.train_dataset[i] for i in batch_idx]
-
+            train_batch_size = getattr(cfg, "train_batch_size", 8)
+            shuffle = getattr(cfg, "shuffle", True)
+            for batch in tqdm(self._iter_batches(self.train_dataset, train_batch_size, shuffle), desc="Training"):
                 loss = self.train_step(self.policy, batch, self.optimizer, self.scheduler, cfg.grad_clip)
-
-                # print(
-                #     torch.cuda.memory_allocated() / 1024**3,
-                #     torch.cuda.memory_reserved() / 1024**3,
-                # )
 
                 self.global_step += 1
                 self.examples_seen += len(batch)
@@ -209,14 +207,8 @@ class Trainer:
         print(f"[{split}] dataset size: {len(dataset)}")
 
         eval_batch_size = getattr(self.config.training, "eval_batch_size", 8)
-        indices = list(range(len(dataset)))
 
-        for start in tqdm(
-            range(0, len(indices), eval_batch_size), desc=f"Evaluating ({split})"
-        ):
-            batch_idx = indices[start : start + eval_batch_size]
-            batch = [dataset[i] for i in batch_idx]
-
+        for batch in tqdm(self._iter_batches(self.train_dataset, eval_batch_size), desc="Evaluating ({split})"):
             loss = compute_db_loss(self.policy, batch, encode_batch_size=64)
             total_loss += loss.item()
             n_batches += 1
@@ -256,6 +248,16 @@ class Trainer:
         return metrics
 
     # ------------------------------------------------------------------
+    def _checkpoint_dict(self, extra: dict | None = None) -> dict:
+        d = {
+            "model": self.policy.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "step": self.global_step,
+        }
+        if extra:
+            d.update(extra)
+        return d
+    
     def save_checkpoint(self, tag: str = None) -> str:
         cfg = self.config.training
         os.makedirs(cfg.output_dir, exist_ok=True)
@@ -263,13 +265,9 @@ class Trainer:
         name = tag or f"checkpoint_step{self.global_step}.pt"
         path = os.path.join(cfg.output_dir, name)
 
+        cp_dict = self._checkpoint_dict()
         torch.save(
-            {
-                "model": self.policy.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
-                "step": self.global_step,
-                "config": self.config,
-            },
+            cp_dict,
             path,
         )
 
@@ -290,14 +288,10 @@ class Trainer:
             cfg = self.config.training
             os.makedirs(cfg.output_dir, exist_ok=True)
             path = os.path.join(cfg.output_dir, "checkpoint_best.pt")
+            cp_dict = self._checkpoint_dict(extra={"val_reward": metrics["val_reward"], "val_loss": metrics["val_loss"]})
+            
             torch.save(
-                {
-                    "model": self.policy.state_dict(),
-                    "optimizer": self.optimizer.state_dict(),
-                    "step": self.global_step,
-                    "val_reward": metrics["val_reward"],
-                    "val_loss": metrics["val_loss"],
-                },
+                cp_dict,
                 path,
             )
             print(
