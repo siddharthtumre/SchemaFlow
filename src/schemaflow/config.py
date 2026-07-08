@@ -67,11 +67,11 @@ class TrainingConfig:
     test_data:       List   = field(default_factory=lambda: test_data)
     output_dir:      str   = "checkpoints/"
     # Training
-    num_epochs:      int   = 10
+    num_epochs:      int   = 2
     shuffle:         bool  = True
     accum_steps:     int   = 2
-    train_batch_size:int   = 8
-    eval_batch_size: int   = 8
+    train_batch_size:int   = 16
+    eval_batch_size: int   = 16
     lr:              float = 1e-4
     grad_clip:       float = 1.0
     # Logging
