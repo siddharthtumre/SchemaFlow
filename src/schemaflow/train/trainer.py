@@ -18,7 +18,7 @@ from schemaflow.schema.state import SchemaState
 # Detailed balance loss
 # ──────────────────────────────────────────────────────────────────────
 
-def compute_db_loss(policy, trajectories, encode_batch_size=16):
+def compute_db_loss(policy, trajectories, encode_batch_size=32):
     items = []
     schema_lookup, query_lookup = {}, {}
 
@@ -105,7 +105,7 @@ class Trainer:
         return torch.optim.AdamW(params, lr=self.config.training.lr)
 
     # ------------------------------------------------------------------
-    def train_step(self, policy, trajectories, optimizer, grad_clip, encode_batch_size=16):
+    def train_step(self, policy, trajectories, optimizer, grad_clip, encode_batch_size=32):
         """Training wrapper: computes loss, backprops, and steps the optimizer."""
         optimizer.zero_grad()
         loss = compute_db_loss(policy, trajectories, encode_batch_size)
@@ -199,7 +199,7 @@ class Trainer:
             batch_idx = indices[start : start + eval_batch_size]
             batch = [dataset[i] for i in batch_idx]
 
-            loss = compute_db_loss(self.policy, batch, encode_batch_size=16)
+            loss = compute_db_loss(self.policy, batch, encode_batch_size=32)
             total_loss += loss.item()
             n_batches += 1
 
