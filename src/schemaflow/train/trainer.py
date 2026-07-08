@@ -167,9 +167,11 @@ class Trainer:
                     print(f"Trajectories seen: {self.examples_seen}")
                     print(f"Transitions seen: {self.transitions_seen}")
 
-            metrics = self.evaluate(split="val")
-            self.save_checkpoint()
-            self.save_best_checkpoint(metrics)
+                if self.global_step % getattr(cfg, "eval_every", 100) == 0 and self.global_step > 0:
+                    metrics = self.evaluate(split="val")
+                    self.save_best_checkpoint(metrics)
+                    self.policy.train()
+                    
         
         print("\nTraining complete.")
         print("Evaluating on test set using final model...")
@@ -239,8 +241,6 @@ class Trainer:
 
                 total_reward += reward
                 n_examples += 1
-
-        self.policy.train()
 
         metrics = {
             f"{split}_loss": total_loss / max(n_batches, 1),
