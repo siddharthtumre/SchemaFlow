@@ -22,10 +22,11 @@ from schemaflow.schema.state import SchemaState
 def compute_db_loss(
     policy: SchemaFlowPolicy,
     trajectories: List[Trajectory],
+    split="train",
     optimizer=None,
-    grad_clip=None
+    grad_clip=None,
 ) -> torch.Tensor:
-    if optimizer is not None:
+    if split=="train":
         optimizer.zero_grad()
         
     total_loss = 0.0
@@ -53,18 +54,18 @@ def compute_db_loss(
             )
             residual = (log_f_s + log_pf) - (log_f_s_next + log_pb)
 
-            step_loss = (residual ** 2) / n_transitions  # normalize over full batch
-            step_loss.backward()  # graph for this step is freed right here
+            step_loss = (residual ** 2) / n_transitions
+            if split=="train":
+                step_loss.backward()
             total_loss += step_loss.item()
             
     
-    if optimizer is not None:
-        if grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(
-                policy.trainable_parameters(),
-                grad_clip,
-            )
-        optimizer.step()
+    if split=="train":
+        torch.nn.utils.clip_grad_norm_(
+            policy.trainable_parameters(),
+            grad_clip,
+        )
+    optimizer.step()
     return total_loss
 
 
@@ -136,7 +137,7 @@ class Trainer:
                 batch_idx = indices[start : start + batch_size]
                 batch = [self.train_dataset[i] for i in batch_idx]
 
-                loss = compute_db_loss(self.policy, batch, self.optimizer, cfg.grad_clip)
+                loss = compute_db_loss(self.policy, batch, "train", self.optimizer, cfg.grad_clip)
 
                 # print(
                 #     torch.cuda.memory_allocated() / 1024**3,
@@ -200,7 +201,7 @@ class Trainer:
             batch_idx = indices[start : start + eval_batch_size]
             batch = [dataset[i] for i in batch_idx]
 
-            loss = compute_db_loss(self.policy, batch)
+            loss = compute_db_loss(self.policy, batch, split="val")
             total_loss += loss.item()
             n_batches += 1
 
