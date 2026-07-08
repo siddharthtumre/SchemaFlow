@@ -70,8 +70,8 @@ class TrainingConfig:
     num_epochs:      int   = 2
     shuffle:         bool  = True
     accum_steps:     int   = 2
-    train_batch_size:int   = 4
-    eval_batch_size: int   = 4
+    train_batch_size:int   = 8
+    eval_batch_size: int   = 8
     lr:              float = 1e-4
     grad_clip:       float = 1.0
     # Logging
