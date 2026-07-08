@@ -18,7 +18,7 @@ from schemaflow.schema.state import SchemaState
 # Detailed balance loss
 # ──────────────────────────────────────────────────────────────────────
 
-def compute_db_loss(policy, trajectories, encode_batch_size=8):
+def compute_db_loss(policy, trajectories, encode_batch_size=16):
     items = []
     schema_lookup, query_lookup = {}, {}
 
@@ -105,7 +105,7 @@ class Trainer:
         return torch.optim.AdamW(params, lr=self.config.training.lr)
 
     # ------------------------------------------------------------------
-    def train_step(self, policy, trajectories, optimizer, grad_clip, encode_batch_size=8):
+    def train_step(self, policy, trajectories, optimizer, grad_clip, encode_batch_size=16):
         """Training wrapper: computes loss, backprops, and steps the optimizer."""
         optimizer.zero_grad()
         loss = compute_db_loss(policy, trajectories, encode_batch_size)
@@ -147,7 +147,7 @@ class Trainer:
                 self.transitions_seen += sum(len(t.steps) for t in batch)
                 
                 if self.global_step % getattr(cfg, "log_every", 50) == 0:
-                    print(f"epoch {epoch} | step {self.global_step} | loss {loss:.4f}")
+                    print(f"epoch {epoch+1} | step {self.global_step} | loss {loss:.4f}")
                     print(f"Trajectories seen: {self.examples_seen}")
                     print(f"Transitions seen: {self.transitions_seen}")
 
@@ -199,7 +199,7 @@ class Trainer:
             batch_idx = indices[start : start + eval_batch_size]
             batch = [dataset[i] for i in batch_idx]
 
-            loss = compute_db_loss(self.policy, batch, encode_batch_size=8)
+            loss = compute_db_loss(self.policy, batch, encode_batch_size=16)
             total_loss += loss.item()
             n_batches += 1
 
