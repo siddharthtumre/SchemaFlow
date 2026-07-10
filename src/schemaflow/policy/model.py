@@ -22,24 +22,31 @@ from schemaflow.schema.graph import SchemaGraph
 from schemaflow.config import ModelConfig, LoRAConfig, GFlowNetConfig
 
 class LLM(nn.Module):
-    def __init__(self, model_config: ModelConfig, lora_config: LoRAConfig, device: torch.device):
+    def __init__(self, model_config: ModelConfig, lora_config: LoRAConfig):
         super().__init__()
-        self.device = device
 
         quant_config = None
         if model_config.load_in_4bit:
             quant_config = BitsAndBytesConfig(
                 load_in_4bit=True,
-                bnb_4bit_compute_dtype=getattr(torch, model_config.bnb_4bit_compute_dtype),
+                bnb_4bit_compute_dtype=getattr(
+                    torch, model_config.bnb_4bit_compute_dtype
+                ),
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4",
             )
-        base_model = AutoModel.from_pretrained(
-            model_config.model_name,
-            trust_remote_code=True,
-            device_map="auto",
-            quantization_config=quant_config,
-        )
+
+            base_model = AutoModel.from_pretrained(
+                model_config.model_name,
+                trust_remote_code=True,
+                quantization_config=quant_config,
+                device_map="auto",
+            )
+        else:
+            base_model = AutoModel.from_pretrained(
+                model_config.model_name,
+                trust_remote_code=True,
+            )
         
         if model_config.load_in_4bit:
             base_model = prepare_model_for_kbit_training(base_model)
@@ -64,13 +71,14 @@ class LLM(nn.Module):
 
     def encode(self, texts: List[str]) -> torch.Tensor:
         # print("Before forward:", torch.cuda.memory_allocated() / 1024**3)
+        device = next(self.model.parameters()).device
         enc = self.tokenizer(
             texts,
             return_tensors="pt",
             padding=True,
             truncation=True,
             max_length=512,
-        ).to(self.device)
+        ).to(device)
 
         out = self.model(
             **enc,
@@ -114,15 +122,13 @@ class SchemaFlowPolicy(nn.Module):
         model_config: ModelConfig,
         lora_config: LoRAConfig,
         gfn_config:  GFlowNetConfig,
-        device:      torch.device,
     ):
         super().__init__()
-        self.device = device
         self.gfn_config = gfn_config
 
-        self.llm = LLM(model_config, lora_config, device)
-        self.policy_head = MLPHead(self.llm.hidden_size).to(device)
-        self.flow_head = MLPHead(self.llm.hidden_size).to(device)
+        self.llm = LLM(model_config, lora_config)
+        self.policy_head = MLPHead(self.llm.hidden_size)
+        self.flow_head = MLPHead(self.llm.hidden_size)
         
     def batch_forward(self, items, schema_lookup, query_lookup, encode_batch_size=8):
         flow_texts, flow_keys, actions_per_item = [], [], []
@@ -149,7 +155,7 @@ class SchemaFlowPolicy(nn.Module):
             action_pooled = self._encode_batched(action_texts, encode_batch_size)
             logits_all = self.policy_head(action_pooled)  # (M,)
         else:
-            logits_all = torch.empty(0, device=self.device)
+            logits_all = torch.empty(0, device=flow_pooled.device)
 
         results = {}
         ptr = 0
@@ -159,7 +165,7 @@ class SchemaFlowPolicy(nn.Module):
 
             if n == 0:
                 results[key] = PolicyOutput(
-                    actions=[], log_probs=torch.empty(0, device=self.device), log_flow=log_flow_i
+                    actions=[], log_probs=torch.empty(0, device=flow_pooled.device), log_flow=log_flow_i
                 )
                 continue
 

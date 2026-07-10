@@ -75,14 +75,22 @@ class Trainer:
 
         self.config = config
         self.device = config.device
+        self.model_config = config.model
 
         self.policy = SchemaFlowPolicy(
-            model_config=config.model,
+            model_config=self.model_config,
             lora_config=config.lora,
             gfn_config=config.gfn,
-            device=self.device,
-        ).to(self.device)
-        self.policy = self.policy.to(self.policy.llm.model.dtype)
+        )
+        
+        if config.model.load_in_4bit:
+            dtype = self.policy.llm.model.dtype
+
+            self.policy.policy_head.to(device=self.device, dtype=dtype)
+            self.policy.flow_head.to(device=self.device, dtype=dtype)
+        else:
+            self.policy.to(self.device)
+            self.policy.to(dtype=self.policy.llm.model.dtype)
 
         self.train_dataset = SchemaLinkingDataset(config.training.train_data, max_trajectories=None)
         self.val_dataset = SchemaLinkingDataset(config.training.eval_data, max_trajectories=None)
