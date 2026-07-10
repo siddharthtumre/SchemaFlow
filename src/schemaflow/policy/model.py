@@ -27,6 +27,7 @@ class LLM(nn.Module):
 
         quant_config = None
         if model_config.load_in_4bit:
+            print("Loading model in 4bit quanitzation")
             quant_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=getattr(
