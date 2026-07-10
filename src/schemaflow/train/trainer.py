@@ -174,7 +174,7 @@ class Trainer:
                     print(f"Trajectories seen: {self.examples_seen}")
                     print(f"Transitions seen: {self.transitions_seen}")
 
-                if self.global_step % getattr(cfg, "eval_every", 100) == 0 and self.global_step > 0:
+                if self.global_step % getattr(cfg, "eval_every", 200) == 0 and self.global_step > 0:
                     metrics = self.evaluate(split="val")
                     self.save_best_checkpoint(metrics)
                     self.policy.train()
@@ -229,7 +229,7 @@ class Trainer:
 
             for traj in batch:
                 schema = SCHEMAS[traj.example["schema"]]
-                terminal_state = self.policy.rollout(traj.query, schema, greedy=True)
+                terminal_state = self.policy.rollout(traj.query, schema, greedy=False)
 
                 if terminal_state.is_terminal:
                     reward = self.reward_fn(

@@ -213,9 +213,9 @@ class SchemaFlowPolicy(nn.Module):
                 break
 
             if greedy:
-                idx = torch.argmax(out.log_probs).item()
+                idx = torch.argmax(out.log_probs, dim=-1).item()
             else:
-                probs = out.log_probs.exp()
+                probs = torch.nn.functional.softmax(out.log_probs, dim=-1)
                 idx = torch.multinomial(probs, num_samples=1).item()
             action = out.actions[idx]
             state = apply_action(state, action, schema)
