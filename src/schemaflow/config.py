@@ -72,11 +72,12 @@ class TrainingConfig:
     accum_steps:       int   = 2
     train_batch_size:  int   = 8
     eval_batch_size:   int   = 8
-    encode_batch_size: int = 64
+    encode_batch_size: int   = 64
     lr:                float = 1e-4
     grad_clip:         float = 1.0
     # Logging
-    log_every:         int   = 50
+    log_every:         int   = 200
+    eval_every:        int   = 1000
     # Seed
     seed:              int   = 42
 
