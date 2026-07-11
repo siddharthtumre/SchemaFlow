@@ -36,7 +36,7 @@ test_data = test_data
 
 @dataclass
 class ModelConfig:
-    model_name:      str   = "Qwen/Qwen3-0.6B"
+    model_name:      str   = "Qwen/Qwen3-4B"
     load_in_4bit:    bool  = False
     bnb_4bit_compute_dtype: str = "bfloat16"
 
@@ -62,22 +62,23 @@ class GFlowNetConfig:
 @dataclass
 class TrainingConfig:
     # Paths
-    train_data:      List   = field(default_factory=lambda: train_data)
-    eval_data:       List   = field(default_factory=lambda: eval_data)
-    test_data:       List   = field(default_factory=lambda: test_data)
-    output_dir:      str   = "checkpoints/"
+    train_data:        List   = field(default_factory=lambda: train_data)
+    eval_data:         List   = field(default_factory=lambda: eval_data)
+    test_data:         List   = field(default_factory=lambda: test_data)
+    output_dir:        str   = "checkpoints/"
     # Training
-    num_epochs:      int   = 2
-    shuffle:         bool  = True
-    accum_steps:     int   = 2
-    train_batch_size:int   = 16
-    eval_batch_size: int   = 16
-    lr:              float = 1e-4
-    grad_clip:       float = 1.0
+    num_epochs:        int   = 2
+    shuffle:           bool  = True
+    accum_steps:       int   = 2
+    train_batch_size:  int   = 8
+    eval_batch_size:   int   = 8
+    encode_batch_size: int = 64
+    lr:                float = 1e-4
+    grad_clip:         float = 1.0
     # Logging
-    log_every:       int   = 50
+    log_every:         int   = 50
     # Seed
-    seed:            int   = 42
+    seed:              int   = 42
 
 
 @dataclass
