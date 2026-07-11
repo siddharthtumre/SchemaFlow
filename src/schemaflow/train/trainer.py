@@ -159,6 +159,7 @@ class Trainer:
         cfg = self.config.training
         self.policy.train()
 
+        encode_batch_size = getattr(cfg, "encode_batch_size", 128)
         for epoch in range(cfg.num_epochs):
             print(f"[train] epoch {epoch+1}")
             print(f"[train] train dataset size: {len(self.train_dataset)}")
@@ -171,7 +172,7 @@ class Trainer:
                 total=total_batches,
                 desc="Training",
             ):
-                loss = self.train_step(self.policy, batch, self.optimizer, self.scheduler, cfg.grad_clip)
+                loss = self.train_step(self.policy, batch, self.optimizer, self.scheduler, cfg.grad_clip, encode_batch_size=encode_batch_size)
 
                 self.global_step += 1
                 self.examples_seen += len(batch)
@@ -183,7 +184,7 @@ class Trainer:
                     print(f"Transitions seen: {self.transitions_seen}")
 
                 if self.global_step % getattr(cfg, "eval_every", 200) == 0 and self.global_step > 0:
-                    metrics = self.evaluate(split="val")
+                    metrics = self.evaluate(dataset=self.val_dataset, split="val", encode_batch_size=encode_batch_size)
                     self.save_best_checkpoint(metrics)
                     self.policy.train()
                     
@@ -201,6 +202,7 @@ class Trainer:
         test_metrics = self.evaluate(
             dataset=self.test_dataset,
             split="test",
+            encode_batch_size=encode_batch_size
         )
 
         print(f"Final test metrics: {test_metrics}")
@@ -211,6 +213,7 @@ class Trainer:
         self,
         dataset: SchemaLinkingDataset | None = None,
         split: str = "val",
+        encode_batch_size: int = 64
     ) -> dict:
         self.policy.eval()
 
@@ -231,7 +234,7 @@ class Trainer:
             total=total_batches,
             desc="Evaluating ({split})",
         ):
-            loss = compute_db_loss(self.policy, batch, encode_batch_size=64)
+            loss = compute_db_loss(self.policy, batch, encode_batch_size=encode_batch_size)
             total_loss += loss.item()
             n_batches_processed += 1
 

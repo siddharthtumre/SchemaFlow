@@ -36,8 +36,8 @@ test_data = test_data
 
 @dataclass
 class ModelConfig:
-    model_name:      str   = "Qwen/Qwen3-4B"
-    load_in_4bit:    bool  = False
+    model_name:      str   = "Qwen/Qwen3-0.6B"
+    load_in_4bit:    bool  = True
     bnb_4bit_compute_dtype: str = "bfloat16"
 
 @dataclass
@@ -70,8 +70,8 @@ class TrainingConfig:
     num_epochs:      int   = 2
     shuffle:         bool  = True
     accum_steps:     int   = 2
-    train_batch_size:int   = 8
-    eval_batch_size: int   = 8
+    train_batch_size:int   = 16
+    eval_batch_size: int   = 16
     lr:              float = 1e-4
     grad_clip:       float = 1.0
     # Logging
