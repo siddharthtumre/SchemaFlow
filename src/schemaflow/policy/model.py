@@ -24,6 +24,8 @@ from schemaflow.config import ModelConfig, LoRAConfig, GFlowNetConfig
 class LLM(nn.Module):
     def __init__(self, model_config: ModelConfig, lora_config: LoRAConfig):
         super().__init__()
+        
+        self.system_prompt = "You are an expert schema linking assistant for graph databases."
 
         quant_config = None
         if model_config.load_in_4bit:
@@ -73,8 +75,25 @@ class LLM(nn.Module):
     def encode(self, texts: List[str]) -> torch.Tensor:
         # print("Before forward:", torch.cuda.memory_allocated() / 1024**3)
         device = next(self.model.parameters()).device
+        formatted_texts = [
+            self.tokenizer.apply_chat_template(
+                [
+                    {
+                        "role": "system",
+                        "content": self.system_prompt,
+                    },
+                    {
+                        "role": "user",
+                        "content": text,
+                    },
+                ],
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+            for text in texts
+        ]
         enc = self.tokenizer(
-            texts,
+            formatted_texts,
             return_tensors="pt",
             padding=True,
             truncation=True,
@@ -188,14 +207,15 @@ class SchemaFlowPolicy(nn.Module):
             self,
             state: SchemaState,
             schema: SchemaGraph,
-            query: str
+            query: str,
+            encode_batch_size: int = 128
         ) -> PolicyOutput:
         key = (0, state)
         results = self.batch_forward(
             [key],
             schema_lookup={0: schema},
             query_lookup={0: query},
-            encode_batch_size=8,
+            encode_batch_size=encode_batch_size,
         )
         return results[key]
 
@@ -206,6 +226,7 @@ class SchemaFlowPolicy(nn.Module):
         self,
         query: str,
         schema,
+        encode_batch_size=128,
         greedy: bool = True,
         max_steps: int = 20,
     ) -> SchemaState:
@@ -214,7 +235,7 @@ class SchemaFlowPolicy(nn.Module):
         for _ in range(max_steps):
             if state.is_terminal:
                 break
-            out = self(state, schema, query)
+            out = self(state, schema, query, encode_batch_size)
 
             if not out.actions:
                 break
