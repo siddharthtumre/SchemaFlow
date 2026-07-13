@@ -240,18 +240,18 @@ class Trainer:
 
             for traj in batch:
                 schema = SCHEMAS[traj.example["schema"]]
-                terminal_state = self.policy.rollout(traj.query, schema, encode_batch_size=encode_batch_size, greedy=True)
+                terminal_state = self.policy.rollout(traj.query, schema, encode_batch_size=encode_batch_size, greedy=False)
                 
-                reward = self.reward_fn(
-                    terminal_state,
-                    schema,
-                    gold_nodes=frozenset(traj.example["gold"]["nodes"]),
-                    gold_node_props=frozenset(traj.example["gold"]["node_props"]),
-                    gold_rels=frozenset(traj.example["gold"]["relations"]),
-                    gold_rel_props=frozenset(
-                        traj.example["gold"]["relation_props"]
-                    ),
-                )
+                if terminal_state.is_terminal:
+                    reward = self.reward_fn(
+                        terminal_state, schema,
+                        gold_nodes=frozenset(traj.example["gold"]["nodes"]),
+                        gold_node_props=frozenset(traj.example["gold"]["node_props"]),
+                        gold_rels=frozenset(traj.example["gold"]["relations"]),
+                        gold_rel_props=frozenset(traj.example["gold"]["relation_props"]),
+                    )
+                else:
+                    reward = 0.0
 
                 total_reward += reward
                 n_examples_processed += 1
