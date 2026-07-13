@@ -79,7 +79,7 @@ class TrainingConfig:
     train_data:        List   = field(default_factory=lambda: train_data)
     eval_data:         List   = field(default_factory=lambda: eval_data)
     test_data:         List   = field(default_factory=lambda: test_data)
-    output_dir:        str   = "checkpoints_qwen2.5_0.5b_instruct"
+    output_dir:        str   = "checkpoints_qwen3_4b"
     # Training
     num_epochs:        int   = 2
     shuffle:           bool  = True
