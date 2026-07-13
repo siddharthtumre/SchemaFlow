@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 import json
 import torch
+import random
+from collections import defaultdict
 
 def map_data_types(data):
     for example in data:
@@ -26,17 +28,29 @@ with open(test_datapath, "r", encoding="utf-8") as f:
 train_data = map_data_types(train_data)
 test_data = map_data_types(test_data)
 
-split_idx = int(0.9 * len(train_data))
+random.seed(42)
 
-original_train_data = train_data
-train_data = original_train_data[0:split_idx]
-eval_data = original_train_data[split_idx:]
+schema_groups = defaultdict(list)
+for example in train_data:
+    schema_groups[example["schema"]].append(example)
+    
+train_split = []
+eval_split = []
 
+for examples in schema_groups.values():
+    random.shuffle(examples)
+
+    n_val = max(1, round(0.01 * len(examples)))
+    eval_split.extend(examples[:n_val])
+    train_split.extend(examples[n_val:])
+
+train_data = train_split
+eval_data = eval_split
 test_data = test_data
 
 @dataclass
 class ModelConfig:
-    model_name:      str   = "Qwen/Qwen2.5-0.5B-Instruct"
+    model_name:      str   = "Qwen/Qwen3-0.6B"
     load_in_4bit:    bool  = False
     bnb_4bit_compute_dtype: str = "bfloat16"
 
