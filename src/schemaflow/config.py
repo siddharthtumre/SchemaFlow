@@ -50,7 +50,7 @@ test_data = test_data
 
 @dataclass
 class ModelConfig:
-    model_name:      str   = "Qwen/Qwen3-0.6B"
+    model_name:      str   = "Qwen/Qwen2.5-0.5B-Instruct"
     load_in_4bit:    bool  = False
     bnb_4bit_compute_dtype: str = "bfloat16"
 
