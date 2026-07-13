@@ -50,7 +50,7 @@ test_data = test_data
 
 @dataclass
 class ModelConfig:
-    model_name:      str   = "Qwen/Qwen3-4B"
+    model_name:      str   = "Qwen/Qwen3-0.6B"
     load_in_4bit:    bool  = False
     bnb_4bit_compute_dtype: str = "bfloat16"
 
@@ -79,7 +79,7 @@ class TrainingConfig:
     train_data:        List   = field(default_factory=lambda: train_data)
     eval_data:         List   = field(default_factory=lambda: eval_data)
     test_data:         List   = field(default_factory=lambda: test_data)
-    output_dir:        str   = "checkpoints_qwen3_4b"
+    output_dir:        str   = "checkpoints_qwen3_0.6b"
     # Training
     num_epochs:        int   = 2
     shuffle:           bool  = True
