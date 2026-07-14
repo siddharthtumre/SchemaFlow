@@ -240,7 +240,7 @@ class Trainer:
 
             for traj in batch:
                 schema = SCHEMAS[traj.example["schema"]]
-                terminal_state = self.policy.rollout(traj.query, schema, encode_batch_size=encode_batch_size, greedy=False)
+                terminal_state = self.policy.rollout(traj.query, schema, encode_batch_size=encode_batch_size, greedy=True)
                 
                 if terminal_state.is_terminal:
                     reward = self.reward_fn(
