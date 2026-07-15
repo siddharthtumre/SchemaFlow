@@ -3,7 +3,7 @@
   "model_name_or_path": "Qwen/Qwen3-4B",
   "dtype": "auto",
   "attn_implementation": null,
-  "use_cpu": true,
+  "use_cpu": false,
 
   "load_in_8bit": false,
   "load_in_4bit": false,
