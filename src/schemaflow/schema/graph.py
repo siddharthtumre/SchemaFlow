@@ -7,8 +7,8 @@ class SchemaGraph:
 
     nodes: Set[str]
     relations: Set[str]
-    node_props: Dict[str, Set[str]]
-    rel_props: Dict[str, Set[str]]
+    node_props: Dict[str, Dict[str, str]]
+    rel_props: Dict[str, Dict[str, str]]
     edges: Set[Tuple[str, str, str]]
 
     def neighbors(self, node: str) -> List[Tuple[str, str]]:
@@ -30,41 +30,58 @@ class SchemaGraph:
     def is_valid_edge(self, src: str, rel: str, dst: str) -> bool:
         return (src, rel, dst) in self.edges or (dst, rel, src) in self.edges
 
-    def all_node_properties(self, node: str) -> Set[str]:
-        return self.node_props.get(node, set())
+    def all_node_properties(self, node: str) -> Dict[str, str]:
+        return self.node_props.get(node, {})
 
-    def all_rel_properties(self, rel: str) -> Set[str]:
-        return self.rel_props.get(rel, set())
-
+    def all_rel_properties(self, rel: str) -> Dict[str, str]:
+        return self.rel_props.get(rel, {})
+    
     def describe(self) -> str:
+        lines = []
 
-        lines = ["Graph Schema:"]
-        lines.append(f"  Nodes: {sorted(self.nodes)}")
-        lines.append("  Node Properties:")
-        for n, props in sorted(self.node_props.items()):
-            lines.append(f"    {n}: {sorted(props)}")
-        lines.append("  Relations (src -[rel]-> dst):")
+        lines.append("Node Properties:")
+        for label in sorted(self.nodes):
+            props = self.node_props.get(label, {})
+            prop_str = ", ".join(
+                f"{k}: {v}" for k, v in sorted(props.items())
+            )
+            lines.append(f"  {label} {{ {prop_str} }}")
+
+        lines.append("")
+        lines.append("Relationship properties:")
+        seen = set()
         for src, rel, dst in sorted(self.edges):
-            rel_p = sorted(self.rel_props.get(rel, set()))
-            lines.append(f"    ({src})-[{rel}]->({dst})  props: {rel_p}")
+            if (src, rel, dst) in seen:
+                continue
+            seen.add((src, rel, dst))
+
+            props = self.rel_props.get(rel, {})
+            prop_str = ""
+            if props:
+                prop_str = " { " + ", ".join(
+                    f"{k}: {v}" for k, v in sorted(props.items())
+                ) + " }"
+
+            lines.append(f"  (:{src})-[:{rel}{prop_str}]->(:{dst})")
+
         return "\n".join(lines)
 
 
 def schema_from_dict(d: dict) -> SchemaGraph:
     nodes = {entity["label"] for entity in d["entities"]}
 
-    node_props = {
-        entity["label"]: {"name"} | set(entity.get("properties", {}).keys())
-        for entity in d["entities"]
-    }
+    node_props = {}
+    for entity in d["entities"]:
+        props = {"name": "str"}  # default property
+        props.update(entity.get("properties", {}))
+        node_props[entity["label"]] = props
 
     relations = {rel["label"] for rel in d["relations"]}
 
     rel_props = {}
     for rel in d["relations"]:
         label = rel["label"]
-        props = set(rel.get("properties", {}).keys())
-        rel_props.setdefault(label, set()).update(props)
+        rel_props.setdefault(label, {}).update(rel.get("properties", {}))
 
     edges = {
         (rel["subj_label"], rel["label"], rel["obj_label"])

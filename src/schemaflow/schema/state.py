@@ -23,6 +23,7 @@ class Action:
     dst: Optional[str] = None
     relation: Optional[str] = None
     prop: Optional[str] = None
+    dtype: Optional[str] = None
 
     def __str__(self) -> str:
         if self.type == ActionType.ADD_NODE:
@@ -31,10 +32,10 @@ class Action:
             return f"ADD_NODE({self.src}, {self.relation}, {self.dst})"
 
         if self.type == ActionType.ADD_NODE_PROP:
-            return f"ADD_NODE_PROP({self.node}, {self.prop})"
+            return f"ADD_NODE_PROP({self.node}, {self.prop}:{self.dtype})"
 
         if self.type == ActionType.ADD_RELATION_PROP:
-            return f"ADD_RELATION_PROP({self.relation}, {self.prop})"
+            return f"ADD_RELATION_PROP({self.relation}, {self.prop}:{self.dtype})"
         return "EOS"
 
 
@@ -50,7 +51,7 @@ class SchemaState:
     is_terminal: bool = False
     
     @classmethod
-    def initial(cls, query: str) -> "SchemaState":
+    def initial(cls, query: str) -> SchemaState:
         return cls(
             query=query,
             selected_nodes=frozenset(),
@@ -127,19 +128,27 @@ def valid_actions(state: SchemaState, schema: SchemaGraph) -> List[Action]:
 
     # Add node properties.
     for node in sorted(state.selected_nodes):
-        for prop in sorted(schema.all_node_properties(node)):
+        for prop, dtype in sorted(schema.all_node_properties(node).items()):
             if (node, prop) not in state.selected_node_props:
-                actions.append(Action(ActionType.ADD_NODE_PROP, node=node, prop=prop))
+                actions.append(
+                    Action(
+                        ActionType.ADD_NODE_PROP,
+                        node=node,
+                        prop=prop,
+                        dtype=dtype,
+                    )
+                )
 
     # Add relation properties.
     for rel in sorted(state.selected_rel_types()):
-        for prop in sorted(schema.all_rel_properties(rel)):
+        for prop, dtype in sorted(schema.all_rel_properties(rel).items()):
             if (rel, prop) not in state.selected_rel_props:
                 actions.append(
                     Action(
                         ActionType.ADD_RELATION_PROP,
                         relation=rel,
                         prop=prop,
+                        dtype=dtype,
                     )
                 )
 
@@ -237,7 +246,7 @@ def _get_parents_impl(
             selected_relations=state.selected_relations,
             selected_rel_props=state.selected_rel_props,
         )
-        parents.append((parent, Action(ActionType.ADD_NODE_PROP, node=node, prop=prop)))
+        parents.append((parent, Action(ActionType.ADD_NODE_PROP, node=node, prop=prop, dtype=schema.node_props[node][prop],)))
 
     # --- Undo ADD_RELATION_PROP ---
     for rel, prop in state.selected_rel_props:
@@ -249,7 +258,7 @@ def _get_parents_impl(
             selected_rel_props=state.selected_rel_props - {(rel, prop)},
         )
         parents.append(
-            (parent, Action(ActionType.ADD_RELATION_PROP, relation=rel, prop=prop))
+            (parent, Action(ActionType.ADD_RELATION_PROP, relation=rel, prop=prop, dtype=schema.rel_props[rel][prop],))
         )
 
     # --- Undo ADD_NODE(src, rel, dst) ---

@@ -1,0 +1,31 @@
+{
+  "model_type": "qwen3",
+  "model_name_or_path": "Qwen/Qwen3-4B",
+  "dtype": "auto",
+  "attn_implementation": null,
+  "use_cpu": true,
+
+  "load_in_8bit": false,
+  "load_in_4bit": false,
+  "bnb_4bit_quant_type": "nf4",
+  "use_bnb_nested_quant": false,
+  "bnb_4bit_compute_dtype": "bfloat16",
+  "bnb_4bit_use_double_quant": true,
+
+  "input_filepath": "src/schemaflow/data/cb_test.json",
+  "output_filepath": "outputs/zero_shot.xlsx",
+  "logs_dir": "logs/",
+
+  "batch_size": 8,
+  "max_new_tokens": 10000,
+  "do_sample": true,
+  "temperature": 0.7,
+  "top_p": 0.95,
+  "top_k": 20,
+  "min_p": 0.0,
+  "presence_penalty": 1.5,
+  "repetition_penalty": 1.0,
+  "seed": 42,
+
+  "prompt_template": "You are an expert in graph schema linking.\n\nYour task: given a graph database SCHEMA and a natural language QUERY, identify the MINIMAL set of schema elements (node labels, node properties, relationships, and relationship properties) that are relevant to answering the query. Do not attempt to answer the query itself — only extract the schema elements needed to construct a graph query (e.g. Cypher) that could answer it.\n\nSchema:\n{schema}\n\nQuery:\n{query}\n\nInstructions:\n1. nodes: List every node label that must appear in the graph path connecting the entities mentioned or implied in the query (including intermediate/bridge nodes needed to connect two entities, even if not explicitly named in the query).\n2. node_props: List [NodeLabel, property] pairs for every property that is either:\n   - returned/requested in the answer, or\n   - used as a filter condition in the query.\n   Only include properties that exist under that node in the schema.\n3. relations: List [SourceNode, relationshipType, TargetNode] triples, exactly as directed in the schema, for every relationship needed to connect the relevant nodes along the path implied by the query. Preserve the schema's original direction (source -> target).\n4. relation_props: List [relationshipType, property] entries for any relationship properties (if the schema defines them) that are referenced or filtered on in the query. If none are relevant, return an empty list.\n5. Only use node labels, properties, and relationships that literally exist in the provided schema. Do not invent or infer new ones.\n6. Include a node/relationship only if it is actually needed to answer the query — do not include unrelated parts of the schema.\n7. Output only valid JSON in the exact structure below, with no extra commentary, explanation, or markdown formatting.\n\nOutput JSON format:\n{{\n  \"nodes\": [\"NodeLabel\", ...],\n  \"node_props\": [[\"NodeLabel\", \"property\"], ...],\n  \"relations\": [[\"SourceNode\", \"relationshipType\", \"TargetNode\"], ...],\n  \"relation_props\": [[\"relationshipType\", \"property\"], ...]\n}}\n\nOutput only a valid JSON for the given Schema and Query above."
+}
