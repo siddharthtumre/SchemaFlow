@@ -385,8 +385,6 @@ def main():
         ws.append(columns)
         
     rows = []
-    messages = messages[0:2]
-    print(messages[0])
     for start in tqdm(range(0, len(messages), batch_size), desc="Training",):
         end = start + batch_size
 
@@ -414,8 +412,8 @@ def main():
             except (ValueError, KeyError, TypeError) as e:
                 logger.error(f"Error parsing JSON: {e}. Skipping JSON parsing.")
             
-            logger.info(f"\nQuery: {sample['query']}")
-            logger.info(f"\LLM Response: {json_parsed if json_parsed is not None else 'Invalid LLM Response'}")
+            logger.info(f"Query: {sample['query']}")
+            logger.info(f"LLM Response: {json_parsed if json_parsed is not None else 'Invalid LLM Response'}")
             
             rows.append([
                 sample["query"],
@@ -438,7 +436,6 @@ def main():
         wb.save(output_path)
 
         logger.info(
-            "\n"
             f"Processed batch {start // batch_size + 1} "
             f"({min(end, len(ds))}/{len(ds)} examples). "
             f"Saved {len(rows)} rows."
