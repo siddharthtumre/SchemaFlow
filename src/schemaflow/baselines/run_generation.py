@@ -4,6 +4,7 @@ import re
 import json
 import random
 import logging
+from tqdm import tqdm
 from datetime import datetime
 from openpyxl import Workbook, load_workbook
 
@@ -385,7 +386,7 @@ def main():
     rows = []
     messages = messages[0:2]
     print(messages[0])
-    for start in range(0, len(messages), batch_size):
+    for start in tqdm(range(0, len(messages), batch_size), desc="Training",):
         end = start + batch_size
 
         batch_inputs = messages[start:end]
