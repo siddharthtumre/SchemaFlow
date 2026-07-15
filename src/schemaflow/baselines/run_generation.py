@@ -276,10 +276,11 @@ def generate(
                 **inputs,
                 generation_config=generation_config,
             )
-
+            
+            prompt_length = inputs["input_ids"].shape[1]
             decoded = [
-                tokenizer.decode(tokens, skip_special_tokens=True)
-                for tokens in out_tokens
+                tokenizer.decode(output[prompt_length:], skip_special_tokens=True,)
+                for output in out_tokens
             ]
 
             all_results.extend(decoded)
