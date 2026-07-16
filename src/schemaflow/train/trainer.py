@@ -7,7 +7,6 @@ from typing import List
 from tqdm import tqdm
 
 import torch
-from transformers import get_cosine_schedule_with_warmup
 from schemaflow.config import Config, DEFAULT_CONFIG
 
 from schemaflow.policy.model import SchemaFlowPolicy
@@ -101,7 +100,6 @@ class Trainer:
         print(f"Loaded test_dataset with samples: {len(self.test_dataset)}")
 
         self.optimizer = self._build_optimizer()
-        self.scheduler = self._build_scheduler()
         self.reward_fn = SchemaLinkingReward(config.reward, device=self.device)
 
         self.global_step = 0
@@ -118,18 +116,6 @@ class Trainer:
         )
         return torch.optim.AdamW(params, lr=self.config.training.lr)
     
-    def _build_scheduler(self):
-        cfg = self.config.training
-        batch_size = getattr(cfg, "train_batch_size", 8)
-        steps_per_epoch = (len(self.train_dataset) + batch_size - 1) // batch_size
-        total_steps = steps_per_epoch * cfg.num_epochs
-        warmup_steps = int(0.06 * total_steps)
-
-        return get_cosine_schedule_with_warmup(
-            self.optimizer,
-            num_warmup_steps=warmup_steps,
-            num_training_steps=total_steps,
-        )
 
     # ------------------------------------------------------------------
     def _iter_batches(self, dataset, batch_size, shuffle=False):
@@ -140,14 +126,13 @@ class Trainer:
             idx = indices[start : start + batch_size]
             yield [dataset[i] for i in idx]
     
-    def train_step(self, policy, trajectories, optimizer, scheduler, grad_clip, encode_batch_size=64):
+    def train_step(self, policy, trajectories, optimizer, grad_clip, encode_batch_size=64):
         """Training wrapper: computes loss, backprops, and steps the optimizer."""
         optimizer.zero_grad()
         loss = compute_db_loss(policy, trajectories, encode_batch_size)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.trainable_parameters(), grad_clip)
         optimizer.step()
-        scheduler.step()
         return loss.item()
     
     def train(self) -> None:
@@ -172,19 +157,20 @@ class Trainer:
                 total=total_batches,
                 desc="Training",
             ):
-                loss = self.train_step(self.policy, batch, self.optimizer, self.scheduler, cfg.grad_clip, encode_batch_size=encode_batch_size)
+                loss = self.train_step(self.policy, batch, self.optimizer, cfg.grad_clip, encode_batch_size=encode_batch_size)
 
                 self.global_step += 1
                 self.examples_seen += len(batch)
                 self.transitions_seen += sum(len(t.steps) for t in batch)
                 
                 if self.global_step % getattr(cfg, "log_every", 50) == 0:
-                    print(f"epoch {epoch} | step {self.global_step} | loss {loss:.4f} | lr {self.scheduler.get_last_lr()[0]:.2e}")
+                    print(f"epoch {epoch+1} | step {self.global_step} | loss {loss:.4f}")
                     print(f"Trajectories seen: {self.examples_seen}")
                     print(f"Transitions seen: {self.transitions_seen}")
 
                 if self.global_step % getattr(cfg, "eval_every", 200) == 0 and self.global_step > 0:
                     metrics = self.evaluate(dataset=self.val_dataset, split="val", encode_batch_size=encode_batch_size)
+                    self.save_checkpoint()
                     self.save_best_checkpoint(metrics)
                     self.policy.train()
                     
@@ -280,11 +266,11 @@ class Trainer:
             d.update(extra)
         return d
     
-    def save_checkpoint(self, tag: str = None) -> str:
+    def save_checkpoint(self) -> str:
         cfg = self.config.training
         os.makedirs(cfg.output_dir, exist_ok=True)
 
-        name = tag or f"checkpoint_step{self.global_step}.pt"
+        name = f"checkpoint_step{self.global_step}.pt"
         path = os.path.join(cfg.output_dir, name)
 
         cp_dict = self._checkpoint_dict()
